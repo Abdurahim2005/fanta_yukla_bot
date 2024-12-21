@@ -7,9 +7,7 @@ from yt_dlp import YoutubeDL
 import requests
 
 # Bot tokenini kiriting
-BOT_TOKEN = "7137921333:AAFR7o2d6cxdFQq9gNwX5P5wg2Hc96Tngyg"
-
-# Bot obyektini yaratish
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # Railway environment variables orqali token oling
 bot = TeleBot(BOT_TOKEN)
 
 # Logging sozlamalari
@@ -28,7 +26,6 @@ apihelper.SESSION = session
 
 # YouTube URL tekshiruvi
 def is_youtube_url(url: str) -> bool:
-    """URL manzilining YouTube ekanligini tekshirish."""
     return re.match(r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+', url) is not None
 
 # Haqiqiy video yuklash yoki mavjudini yuborish
@@ -60,7 +57,7 @@ def download_and_send_video(message, url):
                 message.chat.id,
                 video=video,
                 caption=f"✅ Video yuklandi: {info.get('title', 'Video')}",
-                timeout=300,  # Uzun fayllar uchun vaqtni oshirish
+                timeout=300,
             )
 
         # Faylni o'chirish

@@ -6,8 +6,12 @@ from telebot import TeleBot, apihelper
 from yt_dlp import YoutubeDL
 import requests
 
-# Bot tokenini kiriting
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # Railway environment variables orqali token oling
+# Tokenni environment variable orqali oling
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN o'rnatilmagan. Iltimos, environment variable orqali tokenni taqdim qiling.")
+
 bot = TeleBot(BOT_TOKEN)
 
 # Logging sozlamalari

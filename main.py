@@ -1,3 +1,4 @@
+
 import logging
 import os
 import re
@@ -29,7 +30,7 @@ apihelper.SESSION = session
 
 # YouTube URL tekshiruvi
 def is_youtube_url(url: str) -> bool:
-    return re.match(r'(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/).+', url) is not None
+    return re.match(r'(https?://)?(www\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/).+', url) is not None
 
 # Fayl nomini tozalash funksiyasi
 def sanitize_filename(filename):
@@ -98,7 +99,7 @@ def download_and_send_video(message, format_id, url):
     try:
         # Eski yuklashlarni tozalash
         clear_download_folder()
-
+        bot.reply_to(message, "⏳Fayl yuklanmoqda,kuting...")
         # Telegram faoliyat belgisi (boshlash)
         action = "upload_audio" if format_id == "mp3" else "upload_video"
         bot.send_chat_action(chat_id=message.chat.id, action=action)
@@ -298,3 +299,4 @@ def handle_format_callback(call):
 # Botni ishga tushirish
 if __name__ == "__main__":
     bot.polling(none_stop=True, timeout=300, long_polling_timeout=100)
+

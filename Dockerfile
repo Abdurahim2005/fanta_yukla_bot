@@ -1,17 +1,17 @@
-# Python 3.9 asosidagi tasvir
-FROM python:3.9
+# Python image asosida tasvir yaratish
+FROM python:3.10-slim
 
 # FFmpeg o'rnatish
 RUN apt-get update && apt-get install -y ffmpeg
 
-# Ishchi papkani belgilash
+# Ishchi katalogni sozlash
 WORKDIR /app
 
-# Kodlarni yuklash
-COPY . .
+# Python loyihangiz fayllarini konteynerga nusxalash
+COPY . /app
 
-# Kutubxonalarni o'rnatish
-RUN pip install -r requirements.txt
+# Python kutubxonalarini o'rnatish
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Botni ishga tushirish
+# Botni ishga tushirish uchun buyruq
 CMD ["python", "main.py"]

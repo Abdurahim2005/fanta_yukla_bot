@@ -8,7 +8,7 @@ import requests
 from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 
 # Bot tokenini kiriting
-BOT_TOKEN = "6655819779:AAGXprQB17q_6gelumQwF3wJl6H5Ea4Oj5Q"
+BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)

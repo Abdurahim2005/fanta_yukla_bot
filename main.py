@@ -6,6 +6,7 @@ from telebot import TeleBot, apihelper, types
 from yt_dlp import YoutubeDL
 import requests
 from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
+import unicodedata
 
 # Bot tokenini kiriting
 BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
@@ -107,7 +108,6 @@ def clear_download_folder():
             except Exception as e:
                 print(f"Faylni o'chirishda xatolik: {file_path}, {e}")
 
-import unicodedata
 def clean_surrogates(text):
     """
     Unicode surrogat belgilarni olib tashlaydi.

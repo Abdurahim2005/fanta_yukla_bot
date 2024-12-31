@@ -1,4 +1,3 @@
-
 import logging
 import os
 import re
@@ -6,9 +5,10 @@ import threading
 from telebot import TeleBot, apihelper, types
 from yt_dlp import YoutubeDL
 import requests
+from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 
 # Bot tokenini kiriting
-BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
+BOT_TOKEN = "6655819779:AAGXprQB17q_6gelumQwF3wJl6H5Ea4Oj5Q"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)
@@ -32,6 +32,10 @@ apihelper.SESSION = session
 def is_youtube_url(url: str) -> bool:
     return re.match(r'(https?://)?(www\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/).+', url) is not None
 
+# Instagram URL ni aniqlash uchun regex
+def is_instagram_url(url):
+    return re.match(r'(https?://)?(www\.)?instagram\.com/.+', url) is not None
+
 # Fayl nomini tozalash funksiyasi
 def sanitize_filename(filename):
     return re.sub(r'[^\w\s-]', '', filename).strip().replace(' ', '_')
@@ -39,7 +43,7 @@ def sanitize_filename(filename):
 # /start buyrug'iga javob
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Youtube havolasini yuboring, Men video va audioni yuklab berishim mumkin!")
+    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Youtube havolasini yuboring, Men video va audioni yuklab berishim mumkin!\n🩸Instagram havolasini ham yuborishingiz mumkin.")
 
 # Formatlar haqida ma'lumotni foydalanuvchiga yuborish
 def get_formats_description(formats):
@@ -273,8 +277,51 @@ def handle_message(message):
         except Exception as e:
             logger.error(f"Xatolik video yuklashda: {e}")
             bot.reply_to(message, "❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.Agar xatolik davom etsa Admin bilan bog'laning")
+    
+    elif is_instagram_url(url):
+        # Foydalanuvchi yuborgan havolani qabul qilib chatdan o'chirish
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+        except Exception as e:
+            print(f"Xatolik foydalanuvchi xabarini o'chirishda: {e}\nXatolik davom etsa Admin bilan bog'laning @Abdurahim0525")
+
+        # Instagram havolasi haqida foydalanuvchiga xabar berish
+        status_message = bot.send_message(
+            message.chat.id,
+            "⏳Video yuklanmoqda, kuting..."
+        )
+
+        try:
+            # Instagram video yuklab olish
+            video_path = download_instagram_video(url)
+
+            # Bot holatini o'zgartirish: video yubormoqda
+            bot.send_chat_action(message.chat.id, action="upload_video")
+
+            # Yuklangan videoni foydalanuvchiga yuborish
+            with open(video_path, 'rb') as video:
+                bot.send_video(
+                    chat_id=message.chat.id,
+                    video=video,
+                    caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
+                )
+
+            # Yuklangan videoni o'chirish
+            os.remove(video_path)
+
+        except ValueError as ve:
+            bot.send_message(message.chat.id, f"Xatolik: {ve}")
+        except Exception as e:
+            bot.send_message(message.chat.id, f"❗️Bu video yopiq akkauntga tegishli bo'lishi mumkin.\n_______________________\n😕Hozirga bu videoni yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!")
+        finally:
+            # "Yuklab olish boshlandi..." xabarini o'chirish
+            try:
+                bot.delete_message(message.chat.id, status_message.message_id)
+            except Exception as e:
+                print(f"Xatolik status xabarni o'chirishda: {e}\nXatolik davom etsa @Abdurhim0525 bilan bog'laning")
+
     else:
-        bot.reply_to(message, "\u274C Xato: To'g'ri YouTube URL manzilini yuboring.")
+        bot.reply_to(message, "\u274C Xato: To'g'ri YouTube yoki Instagram URL manzilini yuboring.")
         
 @bot.callback_query_handler(func=lambda call: call.data.startswith("format:"))
 def handle_format_callback(call):
@@ -299,4 +346,3 @@ def handle_format_callback(call):
 # Botni ishga tushirish
 if __name__ == "__main__":
     bot.polling(none_stop=True, timeout=300, long_polling_timeout=100)
-

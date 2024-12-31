@@ -88,6 +88,14 @@ def create_format_buttons(formats, include_mp3=False):
     return keyboard
 
 def clear_download_folder():
+    folder = "downloads"
+    for file in os.listdir(folder):
+        file_path = os.path.join(folder, file)
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            print(f"Faylni o'chirishda xatolik: {e}")
+
     """Vaqtinchalik fayllarni tozalash."""
     folder = "downloads"
     if os.path.exists(folder):
@@ -99,89 +107,115 @@ def clear_download_folder():
             except Exception as e:
                 print(f"Faylni o'chirishda xatolik: {file_path}, {e}")
 
+import unicodedata
+def clean_surrogates(text):
+    """
+    Unicode surrogat belgilarni olib tashlaydi.
+    """
+    try:
+        # Unicode normalizatsiyasi
+        text = unicodedata.normalize("NFKD", text)
+        # Surrogat belgilarni olib tashlash
+        text = re.sub(r"[\ud800-\udfff]", "", text)
+        return text
+    except Exception as e:
+        raise ValueError(f"Surrogatlarni tozalashda xatolik: {e}")
+
 def download_and_send_video(message, format_id, url):
     try:
+        # URL va foydalanuvchi ma'lumotlarini tozalash
+        url = clean_surrogates(url)
+
         # Eski yuklashlarni tozalash
         clear_download_folder()
-        bot.reply_to(message, "⏳Fayl yuklanmoqda,kuting...")
-        # Telegram faoliyat belgisi (boshlash)
+        bot.reply_to(message, "⏳ Fayl yuklanmoqda, kuting...")
+
+        # Telegram faoliyat belgisi
         action = "upload_audio" if format_id == "mp3" else "upload_video"
         bot.send_chat_action(chat_id=message.chat.id, action=action)
 
+        # Fayl nomlari
+        video_filename = "downloads/video_file.mp4"
+        audio_filename = "downloads/audio_file.mp3"
+        merged_filename = "downloads/merged_video.mp4"
+
+        # YouTubeDL parametrlari
         ydl_opts = {
             "format": "bestaudio/best" if format_id == "mp3" else format_id,
-            "outtmpl": "downloads/%(title)s.%(ext)s",
+            "outtmpl": "downloads/%(title)s.%(ext)s" if format_id == "mp3" else video_filename,
             "quiet": True,
             "noprogress": True,
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}] if format_id == "mp3" else [],
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}] if format_id == "mp3" else [],
             "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "User-Agent": "Mozilla/5.0",
                 "Accept-Language": "en-US,en;q=0.9",
             },
         }
 
-
+        # Faylni yuklab olish
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            safe_title = re.sub(r'[<>:"/\\|?*]', '', info.get('title', 'no_title'))
-            ext = "mp3" if format_id == "mp3" else "mp4"
-            file_path = f"downloads/{safe_title}.{ext}"
 
-        if not os.path.exists(file_path):
-            bot.reply_to(message, "\u274C Faylni yuklab olishda xatolik yuz berdi.Agar xatolik davom etsa Admin bilan bog'laning")
-            return
-
+        # Fayl nomini aniqlash
         if format_id == "mp3":
-            # MP3 faylni yuborish
+            downloaded_filename = ydl.prepare_filename(info).replace(".webm", ".mp3").replace(".m4a", ".mp3")
+            if not os.path.exists(downloaded_filename):
+                bot.reply_to(message, "❌ Faylni yuklab olishda xatolik yuz berdi.")
+                return
+
+            os.rename(downloaded_filename, audio_filename)
+            file_path = audio_filename
+        else:
+            file_path = video_filename
+
+        # Faylni yuborish
+        if format_id == "mp3":
             with open(file_path, "rb") as file:
                 bot.send_audio(
                     chat_id=message.chat.id,
                     audio=file,
-                    caption=f"{info.get('title', 'Audio')}\n\n✅ Shunchaki foydalaning!\n@FantaYukla_bot",
+                    caption=f"🎵 {info.get('title', 'Audio')}\n\n✅ Shunchaki foydalaning!\n@FantaYukla_bot"
                 )
         else:
-            # Audio yuklab olish (video uchun)
+            # Video uchun audio yuklash
             audio_opts = {
                 "format": "bestaudio",
-                "outtmpl": "downloads/%(title)s_audio.%(ext)s",
+                "outtmpl": audio_filename,
                 "quiet": True,
                 "noprogress": True,
             }
-            bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
-            with YoutubeDL(audio_opts) as ydl:
-                audio_info = ydl.extract_info(url, download=True)
-                audio_title = re.sub(r'[<>:"/\\|?*]', '', audio_info.get('title', 'no_title'))
-                audio_path = f"downloads/{audio_title}_audio.{audio_info['ext']}"
 
-            if not os.path.exists(audio_path):
-                bot.reply_to(message, "\u274C Audio faylni yuklashda xatolik yuz berdi.Agar xatolik davom etsa Admin bilan bog'laning")
+            with YoutubeDL(audio_opts) as ydl:
+                ydl.extract_info(url, download=True)
+
+            if not os.path.exists(audio_filename):
+                bot.reply_to(message, "❌ Audio faylni yuklashda xatolik yuz berdi.")
                 return
 
-            # Video va audiolarni birlashtirish
-            merged_path = f"downloads/{safe_title}_merged.mp4"
-            merge_command = f"ffmpeg -i \"{file_path}\" -i \"{audio_path}\" -c:v copy -c:a aac \"{merged_path}\" -y"
+            # Video va audio birlashtirish
+            merge_command = f"ffmpeg -i \"{video_filename}\" -i \"{audio_filename}\" -c:v copy -c:a aac \"{merged_filename}\" -y"
             merge_result = os.system(merge_command)
 
-            if merge_result != 0 or not os.path.exists(merged_path):
-                bot.reply_to(message, "\u274C Video va audio birlashtirishda xatolik yuz berdi.")
+            if merge_result != 0 or not os.path.exists(merged_filename):
+                bot.reply_to(message, "❌ Video va audio birlashtirishda xatolik yuz berdi.")
                 return
 
-            # Foydalanuvchiga birlashtirilgan video yuborish
-            bot.send_chat_action(chat_id=message.chat.id, action="upload_video")
-            with open(merged_path, "rb") as file:
+            # Birlashtirilgan video yuborish
+            with open(merged_filename, "rb") as file:
                 bot.send_video(
                     chat_id=message.chat.id,
                     video=file,
                     caption=f"🎥 {info.get('title', 'Video')}\n\n✅ Shunchaki foydalaning!\n@FantaYukla_bot",
                     supports_streaming=True,
-                    timeout=600,
+                    timeout=600
                 )
-        # Tozalash: Fayl yuborilgandan so'ng
+
+        # Tozalash
         clear_download_folder()
 
     except Exception as e:
-        bot.reply_to(message, f"\u274C Yuklashda xatolik yuz berdi: Agar xatolik davom etsa \n👮‍♂️Admin bilan bog'laning")
-        clear_download_folder()  # Xatolikdan keyin ham fayllarni tozalash
+        bot.reply_to(message, f"❌ Yuklashda xatolik yuz berdi: {e}")
+        clear_download_folder()
 
 # Foydalanuvchi xabarlarini sessiyada saqlash uchun
 user_sessions = {}

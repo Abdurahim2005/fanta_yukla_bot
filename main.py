@@ -319,7 +319,7 @@ def handle_message(message):
                 # Agar hech bir format mos kelmasa
                 if not unique_formats and not mp3_format:
                     bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-                    bot.send_message(chat_id=message.chat.id, text="⚠️ Hech bir format 50 MB dan kichik emas. Iltimos, boshqa video tanlang.")
+                    bot.send_message(chat_id=message.chat.id, text="⚠️ Hech bir format 50 MB dan kichik emas. Iltimos, boshqa video tanlang.\n🛡Telegram cheklovlari tufayli bu videoni yuklab olish imkonsiz👨‍💻Adminlar bu muammo ustida ish olib borishmoqda.")
                     return
 
                 # Tugmalarni yaratish

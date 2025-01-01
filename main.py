@@ -6,10 +6,9 @@ from telebot import TeleBot, apihelper, types
 from yt_dlp import YoutubeDL
 import requests
 from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
-import unicodedata
 
 # Bot tokenini kiriting
-BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
+BOT_TOKEN = "6655819779:AAGXprQB17q_6gelumQwF3wJl6H5Ea4Oj5Q"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)
@@ -89,14 +88,6 @@ def create_format_buttons(formats, include_mp3=False):
     return keyboard
 
 def clear_download_folder():
-    folder = "downloads"
-    for file in os.listdir(folder):
-        file_path = os.path.join(folder, file)
-        try:
-            os.remove(file_path)
-        except OSError as e:
-            print(f"Faylni o'chirishda xatolik: {e}")
-
     """Vaqtinchalik fayllarni tozalash."""
     folder = "downloads"
     if os.path.exists(folder):
@@ -108,6 +99,7 @@ def clear_download_folder():
             except Exception as e:
                 print(f"Faylni o'chirishda xatolik: {file_path}, {e}")
 
+import unicodedata
 def clean_surrogates(text):
     """
     Unicode surrogat belgilarni olib tashlaydi.
@@ -217,12 +209,25 @@ def download_and_send_video(message, format_id, url):
         bot.reply_to(message, f"❌ Yuklashda xatolik yuz berdi: {e}")
         clear_download_folder()
 
+def escape_markdown(text, version=2):
+    """
+    Telegram Markdown uchun maxsus belgilarni qochirish.
+    """
+    if version == 1:
+        escape_chars = r'_*\[\]()~`>#+-=|{}.!'
+    elif version == 2:
+        escape_chars = r'_*\[\]()~`>#+-=|{}.!'
+    else:
+        raise ValueError("Unsupported Markdown version. Use 1 or 2.")
+    
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
 # Foydalanuvchi xabarlarini sessiyada saqlash uchun
 user_sessions = {}
-# url bilan ishlash
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     url = message.text.strip()
+
     if is_youtube_url(url):
         bot.reply_to(message, "⏳ Ma'lumotlar yuklanmoqda...")
         try:
@@ -250,19 +255,16 @@ def handle_message(message):
                 format_details = []
 
                 for f in formats:
-                    # Foydali atributlarni olish
                     resolution = f.get("format_note", "unknown").lower()
-                    filesize = f.get("filesize", None) or 0  # Agar None bo'lsa, 0 ga tenglash
+                    filesize = f.get("filesize", 0) or 0
                     ext = f.get("ext", "unknown")
 
-                    # Filtrlash shartlari
                     if (
-                        ext == "mp4" and
-                        filesize > 0 and  # Fayl hajmi mavjudligini tekshirish
-                        filesize <= 50 * 1024 * 1024 and
-                        resolution not in ["default", "unknown", None]
+                        ext == "mp4"
+                        and filesize > 0
+                        and filesize <= 50 * 1024 * 1024
+                        and resolution not in ["default", "unknown", None]
                     ):
-                        # Agar format yangi yoki kichikroq hajmga ega bo'lsa, uni saqlang
                         if resolution not in unique_formats or filesize < unique_formats[resolution].get("filesize", float("inf")):
                             unique_formats[resolution] = f
 
@@ -273,13 +275,14 @@ def handle_message(message):
                         mp3_format = f
                         break
 
-                # Format hajmlari va tavsiflarni yaratish
+                # Format tafsilotlarini yaratish
                 for resolution, f in unique_formats.items():
-                    size_mb = f.get("filesize", 0) / (1024 * 1024)  # Fayl hajmini MB ga o'tkazish
-                    format_details.append(f"🚀 {resolution.upper()}: {size_mb:.2f}MB")
+                    size_mb = f.get("filesize", 0) / (1024 * 1024)
+                    format_details.append(escape_markdown(f"🚀 {resolution.upper()}: {size_mb:.2f}MB", version=2))
+
                 if mp3_format:
-                    mp3_size_mb = mp3_format.get("filesize", 0) / (1024 * 338)  # MP3 hajmi
-                    format_details.append(f"🎵 MP3: {mp3_size_mb:.2f}MB")
+                    mp3_size_mb = mp3_format.get("filesize", 0) / (1024 * 1024)
+                    format_details.append(escape_markdown(f"🎵 MP3: {mp3_size_mb:.2f}MB", version=2))
 
                 # Agar hech bir format mos kelmasa
                 if not unique_formats and not mp3_format:
@@ -300,18 +303,18 @@ def handle_message(message):
                     chat_id=message.chat.id,
                     photo=thumbnail,
                     caption=(
-                        f"🎥 **{title}**\n"
-                        f"⏱️ **Davomiyligi**: {duration_str}\n\n"
-                        "📥 **Mavjud formatlar:**\n\n" + "\n".join(format_details)
+                        f"🎥 *{escape_markdown(title, version=2)}*\n"
+                        f"⏱️ *Davomiyligi*: {duration_str}\n\n"
+                        "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
                     ),
-                    parse_mode="Markdown",
+                    parse_mode="MarkdownV2",
                     reply_markup=keyboard,
                 )
 
         except Exception as e:
-            logger.error(f"Xatolik video yuklashda: {e}")
-            bot.reply_to(message, "❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.Agar xatolik davom etsa Admin bilan bog'laning")
-    
+            logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
+            bot.reply_to(message, "❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+
     elif is_instagram_url(url):
         # Foydalanuvchi yuborgan havolani qabul qilib chatdan o'chirish
         try:

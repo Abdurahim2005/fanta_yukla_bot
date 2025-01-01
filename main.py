@@ -5,6 +5,8 @@ import threading
 from telebot import TeleBot, apihelper, types
 from yt_dlp import YoutubeDL
 import requests
+import threading
+import time
 from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 
 # Bot tokenini kiriting
@@ -113,6 +115,14 @@ def clean_surrogates(text):
     except Exception as e:
         raise ValueError(f"Surrogatlarni tozalashda xatolik: {e}")
 
+def send_chat_action_periodically(chat_id, action, stop_event):
+    """
+    Chat actionni qayta-qayta yuborish uchun yordamchi funksiya.
+    """
+    while not stop_event.is_set():
+        bot.send_chat_action(chat_id=chat_id, action=action)
+        time.sleep(5)  # Har 5 soniyada yangilab turadi
+        
 def download_and_send_video(message, format_id, url):
     try:
         # URL va foydalanuvchi ma'lumotlarini tozalash
@@ -120,11 +130,17 @@ def download_and_send_video(message, format_id, url):
 
         # Eski yuklashlarni tozalash
         clear_download_folder()
-        bot.reply_to(message, "⏳ Fayl yuklanmoqda, kuting...")
+
+        # Foydalanuvchiga vaqtinchalik xabar yuborish
+        temp_message = bot.reply_to(message, "⏳ Fayl yuklanmoqda, kuting...")
 
         # Telegram faoliyat belgisi
         action = "upload_audio" if format_id == "mp3" else "upload_video"
-        bot.send_chat_action(chat_id=message.chat.id, action=action)
+
+        # Statusni saqlash uchun thread va stop event
+        stop_event = threading.Event()
+        status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
+        status_thread.start()
 
         # Fayl nomlari
         video_filename = "downloads/video_file.mp4"
@@ -205,9 +221,17 @@ def download_and_send_video(message, format_id, url):
         # Tozalash
         clear_download_folder()
 
+        # Yuklanish tugadi xabarini o'chirish
+        bot.delete_message(chat_id=message.chat.id, message_id=temp_message.message_id)
+
     except Exception as e:
         bot.reply_to(message, f"❌ Yuklashda xatolik yuz berdi: {e}")
         clear_download_folder()
+
+    finally:
+        # Statusni to'xtatish
+        stop_event.set()
+        status_thread.join()
 
 def escape_markdown(text, version=2):
     """
@@ -229,7 +253,15 @@ def handle_message(message):
     url = message.text.strip()
 
     if is_youtube_url(url):
-        bot.reply_to(message, "⏳ Ma'lumotlar yuklanmoqda...")
+        try:
+            # Foydalanuvchi yuborgan havolani o'chirish
+            bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except Exception as e:
+            logger.warning(f"Xabarni o'chirishda xatolik: {e}")
+
+        # Ma'lumotlar yuklanmoqda xabarini yuborish
+        loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
+
         try:
             ydl_opts = {"quiet": True, "force_generic_extractor": False}
 
@@ -286,10 +318,8 @@ def handle_message(message):
 
                 # Agar hech bir format mos kelmasa
                 if not unique_formats and not mp3_format:
-                    bot.reply_to(
-                        message,
-                        "⚠️ Hech bir format 50 MB dan kichik emas. Iltimos, boshqa video tanlang.\n🛡Telegram cheklovlari tufayli bu videoni yuklab olish imkonsiz👨‍💻Adminlar bu muammo ustida ish olib borishmoqda."
-                    )
+                    bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
+                    bot.send_message(chat_id=message.chat.id, text="⚠️ Hech bir format 50 MB dan kichik emas. Iltimos, boshqa video tanlang.")
                     return
 
                 # Tugmalarni yaratish
@@ -297,6 +327,9 @@ def handle_message(message):
 
                 # Sessiyani saqlash
                 user_sessions[message.chat.id] = url
+
+                # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
+                bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
 
                 # Foydalanuvchiga xabar yuborish
                 bot.send_photo(
@@ -312,9 +345,11 @@ def handle_message(message):
                 )
 
         except Exception as e:
-            logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
-            bot.reply_to(message, "❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+            # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
+            bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
 
+            logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
+            bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
     elif is_instagram_url(url):
         # Foydalanuvchi yuborgan havolani qabul qilib chatdan o'chirish
         try:

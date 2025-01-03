@@ -7,9 +7,9 @@ from yt_dlp import YoutubeDL
 import requests
 import threading
 import time
-from instagram import download_instagram_video  # Instagram videolarini yuklab olish funksiyasini import qilamiz
+from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 
-# Bot tokenini kiriting
+# Bot tokenini kiriting 
 BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
 
 # Bot obyektini yaratish
@@ -350,7 +350,7 @@ def handle_message(message):
 
             logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
             bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
-    elif is_instagram_url(url):
+    elif True:
         # Foydalanuvchi yuborgan havolani qabul qilib chatdan o'chirish
         try:
             bot.delete_message(message.chat.id, message.message_id)
@@ -365,7 +365,7 @@ def handle_message(message):
 
         try:
             # Instagram video yuklab olish
-            video_path = download_instagram_video(url)
+            video_path = download_video_with_audio(url)
 
             # Bot holatini o'zgartirish: video yubormoqda
             bot.send_chat_action(message.chat.id, action="upload_video")
@@ -391,10 +391,7 @@ def handle_message(message):
                 bot.delete_message(message.chat.id, status_message.message_id)
             except Exception as e:
                 print(f"Xatolik status xabarni o'chirishda: {e}\nXatolik davom etsa @Abdurhim0525 bilan bog'laning")
-
-    else:
-        bot.reply_to(message, "\u274C Xato: To'g'ri YouTube yoki Instagram URL manzilini yuboring.")
-        
+                
 @bot.callback_query_handler(func=lambda call: call.data.startswith("format:"))
 def handle_format_callback(call):
     try:

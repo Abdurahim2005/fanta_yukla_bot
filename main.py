@@ -45,7 +45,7 @@ def sanitize_filename(filename):
 # /start buyrug'iga javob
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Youtube havolasini yuboring, Men video va audioni yuklab berishim mumkin!\n🩸Instagram havolasini ham yuborishingiz mumkin.")
+    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Hohlagan ijtimoiy tarmoq videosini yuklab beraman.\nShunchaki havolani tashlang.")
 
 # Formatlar haqida ma'lumotni foydalanuvchiga yuborish
 def get_formats_description(formats):

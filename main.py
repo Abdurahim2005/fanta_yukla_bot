@@ -373,7 +373,7 @@ def handle_message(message):
         except ValueError as ve:
             bot.send_message(message.chat.id, f"Xatolik: {ve}")
         except Exception as e:
-            bot.send_message(message.chat.id, f"❗️Bu video yopiq akkauntga tegishli bo'lishi mumkin.\n_______________________\n😕Hozirga bu videoni yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!")
+            bot.send_message(message.chat.id, f"❗️Bu video yopiq akkauntga tegishli bo'lishi mumkin.\nYoki bu video mavjud emas.\nRasmlarni yuklab ololmaydi\nBotga o'z xabaringizni yozib qoldiring.Admin murojatlarni imkon boricha tezroq ko'rib chiqadi.")
         finally:
             # "Yuklab olish boshlandi..." xabarini o'chirish
             try:

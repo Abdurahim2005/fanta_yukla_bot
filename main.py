@@ -253,11 +253,6 @@ def handle_message(message):
     url = message.text.strip()
 
     if is_youtube_url(url):
-        try:
-            # Foydalanuvchi yuborgan havolani o'chirish
-            bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-        except Exception as e:
-            logger.warning(f"Xabarni o'chirishda xatolik: {e}")
 
         # Ma'lumotlar yuklanmoqda xabarini yuborish
         loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
@@ -351,12 +346,6 @@ def handle_message(message):
             logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
             bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
     elif True:
-        # Foydalanuvchi yuborgan havolani qabul qilib chatdan o'chirish
-        try:
-            bot.delete_message(message.chat.id, message.message_id)
-        except Exception as e:
-            print(f"Xatolik foydalanuvchi xabarini o'chirishda: {e}\nXatolik davom etsa Admin bilan bog'laning @Abdurahim0525")
-
         # Instagram havolasi haqida foydalanuvchiga xabar berish
         status_message = bot.send_message(
             message.chat.id,

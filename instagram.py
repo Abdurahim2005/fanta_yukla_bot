@@ -8,8 +8,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import chromedriver_autoinstaller
 
+# Foydalanuvchining Downloads papkasini avtomatik aniqlash
+DOWNLOADS_FOLDER = os.path.join(os.getcwd(), "Downloads")
+os.makedirs(DOWNLOADS_FOLDER, exist_ok=True)
+
 # Videoni yuklab olish funksiyasi
-def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', output_filename: str = 'downloaded_video.mp4') -> str:
+def download_video_with_audio(url: str, downloads_folder: str = DOWNLOADS_FOLDER, output_filename: str = 'downloaded_video.mp4') -> str:
     # Yuklab olish yo'lini belgilash
     output_path = os.path.join(downloads_folder, output_filename)
     ydl_opts = {
@@ -26,31 +30,37 @@ def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', out
         raise ValueError(f"Videoni yuklab olishda xatolik: {e}")
 
 # Instagram rasmlarini yuklab olish funksiyasi
-def download_instagram_images_with_selenium(url: str, downloads_folder: str = 'Downloads') -> list:
+def download_instagram_images_with_selenium(url: str, downloads_folder: str = DOWNLOADS_FOLDER) -> list:
     downloaded_files = []
     chromedriver_autoinstaller.install()
     options = webdriver.ChromeOptions()
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--log-level=3')  # Chrome drayver loglarini o'chirish
 
     try:
         driver = webdriver.Chrome(options=options)
         driver.get(url)
         WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, '//img')))
         images = driver.find_elements(By.XPATH, '//img[contains(@src, "cdninstagram")]')
-        image_urls = list(set(img.get_attribute('src') for img in images))
+        image_urls = list(set(img.get_attribute('src') for img in images if img.get_attribute('src')))
 
         # Har bir rasmni yuklab olish
         for idx, image_url in enumerate(image_urls, start=1):
             output_filename = f'image_{idx}.jpg'
             output_path = os.path.join(downloads_folder, output_filename)
-            response = requests.get(image_url, stream=True)
-            if response.status_code == 200:
-                with open(output_path, 'wb') as file:
-                    for chunk in response.iter_content(1024):
-                        file.write(chunk)
-                downloaded_files.append(output_path)
+            try:
+                response = requests.get(image_url, stream=True)
+                if response.status_code == 200:
+                    with open(output_path, 'wb') as file:
+                        for chunk in response.iter_content(1024):
+                            file.write(chunk)
+                    downloaded_files.append(output_path)
+                else:
+                    print(f"❗️Rasmni yuklab bo'lmadi: {image_url}")
+            except requests.RequestException as req_err:
+                print(f"❗️Rasm yuklashda xatolik: {req_err}")
     except Exception as e:
         raise ValueError(f"Rasmlarni yuklab olishda xatolik: {e}")
     finally:
@@ -58,8 +68,14 @@ def download_instagram_images_with_selenium(url: str, downloads_folder: str = 'D
     return downloaded_files
 
 # Media yuklash funksiyasi
-def download_media(url: str, downloads_folder: str = 'Downloads') -> str:
+def download_media(url: str, downloads_folder: str = DOWNLOADS_FOLDER) -> str:
     instagram_photo_regex = r"https://www\.instagram\.com/p/[\w\-]+/"
-    if re.match(instagram_photo_regex, url):
-        return download_instagram_images_with_selenium(url, downloads_folder)
-    return download_video_with_audio(url, downloads_folder)
+    try:
+        if re.match(instagram_photo_regex, url):
+            downloaded_files = download_instagram_images_with_selenium(url, downloads_folder)
+            return f"Rasmlar yuklab olindi: {downloaded_files}"
+        else:
+            downloaded_file = download_video_with_audio(url, downloads_folder)
+            return f"Video yuklab olindi: {downloaded_file}"
+    except ValueError as e:
+        return str(e)

@@ -7,7 +7,8 @@ from yt_dlp import YoutubeDL
 import requests
 import threading
 import time
-from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
+# from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
+from instagram import download_media
 
 # Bot tokenini kiriting 
 BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
@@ -45,7 +46,7 @@ def sanitize_filename(filename):
 # /start buyrug'iga javob
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Hohlagan ijtimoiy tarmoq videosini yuklab beraman.\nShunchaki havolani tashlang.")
+    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌀Youtube havolasini yuboring, Men video va audioni yuklab berishim mumkin!\n🩸Instagram havolasini ham yuborishingiz mumkin.")
 
 # Formatlar haqida ma'lumotni foydalanuvchiga yuborish
 def get_formats_description(formats):
@@ -253,7 +254,6 @@ def handle_message(message):
     url = message.text.strip()
 
     if is_youtube_url(url):
-
         # Ma'lumotlar yuklanmoqda xabarini yuborish
         loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
 
@@ -398,12 +398,12 @@ def handle_message(message):
                 bot.delete_message(message.chat.id, status_message.message_id)
             except Exception as e:
                 print(f"Xatolik status xabarni o'chirishda: {e}\nXatolik davom etsa @Abdurhim0525 bilan bog'laning")
-                
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("format:"))
 def handle_format_callback(call):
     try:
         format_id = call.data.split(":")[1]
-
+    
         # Reply URL ni sessiyadan olish
         url = user_sessions.get(call.message.chat.id)
 

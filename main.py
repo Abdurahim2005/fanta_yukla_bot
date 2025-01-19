@@ -349,32 +349,50 @@ def handle_message(message):
         # Instagram havolasi haqida foydalanuvchiga xabar berish
         status_message = bot.send_message(
             message.chat.id,
-            "⏳Video yuklanmoqda, kuting..."
+            "⏳Yuklanmoqda, kuting..."
         )
+        
+        # Statusni saqlash uchun stop_event va thread boshlash
+        stop_event = threading.Event()
+        action = "upload_video"
+        status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
+        status_thread.start()
 
         try:
-            # Instagram video yuklab olish
-            video_path = download_video_with_audio(url)
+            # Instagram media yuklash (video yoki rasmlar)
+            media = download_media(url)
 
-            # Bot holatini o'zgartirish: video yubormoqda
-            bot.send_chat_action(message.chat.id, action="upload_video")
+            if isinstance(media, list):  # Agar rasmlar ro'yxati bo'lsa
+                for image_path in media:
+                    with open(image_path, 'rb') as photo:
+                        bot.send_photo(
+                            chat_id=message.chat.id,
+                            photo=photo,
+                            caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
+                        )
+                    # Yuklangan rasmni o'chirish
+                    os.remove(image_path)
 
-            # Yuklangan videoni foydalanuvchiga yuborish
-            with open(video_path, 'rb') as video:
-                bot.send_video(
-                    chat_id=message.chat.id,
-                    video=video,
-                    caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
-                )
-
-            # Yuklangan videoni o'chirish
-            os.remove(video_path)
+            else:  # Agar video bo'lsa
+                # Yuklangan videoni foydalanuvchiga yuborish
+                with open(media, 'rb') as video:
+                    bot.send_video(
+                        chat_id=message.chat.id,
+                        video=video,
+                        caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
+                    )
+                # Yuklangan videoni o'chirish
+                os.remove(media)
 
         except ValueError as ve:
             bot.send_message(message.chat.id, f"Xatolik: {ve}")
         except Exception as e:
-            bot.send_message(message.chat.id, f"❗️Bu video yopiq akkauntga tegishli bo'lishi mumkin.\nYoki bu video mavjud emas.\nRasmlarni yuklab ololmaydi\nBotga o'z xabaringizni yozib qoldiring.Admin murojatlarni imkon boricha tezroq ko'rib chiqadi.")
+            bot.send_message(message.chat.id, f"❗️Bu media yopiq akkauntga tegishli bo'lishi mumkin.\n_______________________\n😕Hozirga bu media faylini yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!")
         finally:
+            # Statusni yangilash va to'xtatish
+            stop_event.set()
+            status_thread.join()
+
             # "Yuklab olish boshlandi..." xabarini o'chirish
             try:
                 bot.delete_message(message.chat.id, status_message.message_id)

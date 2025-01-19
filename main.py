@@ -352,14 +352,14 @@ def handle_message(message):
             "⏳Yuklanmoqda, kuting..."
         )
         
+        # Statusni saqlash uchun stop_event va thread boshlash
+        stop_event = threading.Event()
+        action = "upload_video"
+        status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
+        status_thread.start()
+
         try:
             # Instagram media yuklash (video yoki rasmlar)
-            action = "upload_video"
-
-            # Statusni saqlash uchun thread va stop event
-            stop_event = threading.Event()
-            status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
-            status_thread.start()
             media = download_media(url)
 
             if isinstance(media, list):  # Agar rasmlar ro'yxati bo'lsa
@@ -389,6 +389,10 @@ def handle_message(message):
         except Exception as e:
             bot.send_message(message.chat.id, f"❗️Bu media yopiq akkauntga tegishli bo'lishi mumkin.\n_______________________\n😕Hozirga bu media faylini yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!")
         finally:
+            # Statusni yangilash va to'xtatish
+            stop_event.set()
+            status_thread.join()
+
             # "Yuklab olish boshlandi..." xabarini o'chirish
             try:
                 bot.delete_message(message.chat.id, status_message.message_id)

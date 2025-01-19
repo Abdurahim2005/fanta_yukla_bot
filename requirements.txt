@@ -2,3 +2,5 @@ pyTelegramBotAPI
 yt-dlp
 requests
 bs4
+chromedriver-autoinstaller
+selenium

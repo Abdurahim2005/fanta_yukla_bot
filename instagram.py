@@ -1,17 +1,8 @@
 import os
+import re
+import requests
 from yt_dlp import YoutubeDL
-
-# Downloads papkasini tozalash funksiyasi
-def clear_downloads_folder(folder_path: str):
-    if os.path.exists(folder_path):
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
-            try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)  # Faylni o'chirish
-            except Exception as e:
-                print(f"❗️ Faylni o'chirishda xato: {file_path}. Xato: {e}")
-
+from bs4 import BeautifulSoup
 # Videoni yuklab olish funksiyasi
 def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', output_filename: str = 'downloaded_video.mp4') -> str:
     # To'liq chiqish yo'lini hosil qilish
@@ -34,23 +25,61 @@ def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', out
             else:
                 raise e
 
-# Asosiy jarayon
-def main():
-    downloads_folder = 'Downloads'
+# Instagram rasmlarini yuklab olish funksiyasi
+def download_instagram_images(url: str, downloads_folder: str = 'Downloads') -> list:
+    """
+    Instagram postidagi barcha rasmlarni yuklab olish funksiyasi.
+    :param url: Instagram postining URL manzili
+    :param downloads_folder: Yuklab olish uchun papka (default: 'Downloads')
+    :return: Yuklab olingan fayllar ro'yxati
+    """
+    # Yuklab olingan fayllar ro'yxati
+    downloaded_files = []
 
-    # Yuklashni boshlashdan oldin papkani tozalash
-    print("📂 Downloads papkasini tozalash...")
-    clear_downloads_folder(downloads_folder)
-
-    # Yuklab olish
-    video_url = input("Videoning URL manzilini kiriting: ")
     try:
-        print("📥 Videoni yuklab olish boshlandi...")
-        downloaded_file = download_video_with_audio(video_url, downloads_folder)
-        print(f"✅ Video muvaffaqiyatli yuklandi: {downloaded_file}")
-    except Exception as e:
-        print(f"❌ Yuklab olishda xato yuz berdi: {e}")
+        # Sahifani yuklash
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
 
-    # Ish tugaganidan so'ng papkani tozalash
-    print("📂 Ish tugadi. Downloads papkasini yana tozalash...")
-    clear_downloads_folder(downloads_folder)
+        # Sahifani parsing qilish
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Rasmlar URL'larini topish
+        image_tags = soup.find_all('meta', {'property': 'og:image'})
+        image_urls = [tag['content'] for tag in image_tags]
+
+        # Agar rasmlar topilmasa xatolik qaytarish
+        if not image_urls:
+            raise ValueError("❗️Instagram havolasidan rasm URL'larini topib bo'lmadi.")
+
+        # Har bir rasmni yuklab olish
+        for idx, image_url in enumerate(image_urls, start=1):
+            # Fayl nomini yaratish
+            output_filename = f'image_{idx}.jpg'
+            output_path = os.path.join(downloads_folder, output_filename)
+
+            # Rasmni yuklab olish
+            img_data = requests.get(image_url).content
+            with open(output_path, 'wb') as handler:
+                handler.write(img_data)
+
+            # Yuklangan faylni ro'yxatga qo'shish
+            downloaded_files.append(output_path)
+
+        return downloaded_files
+
+    except Exception as e:
+        raise ValueError(f"Rasmlarni yuklab olishda xatolik: {e}")
+
+# Media yuklash funksiyasi
+def download_media(url: str, downloads_folder: str = 'Downloads') -> str:
+    # Instagram rasmlarini yuklashni tekshirish uchun regex
+    instagram_photo_regex = r"https://www\.instagram\.com/p/[\w\-]+/"
+    
+    if re.match(instagram_photo_regex, url):
+        # Agar bu Instagram rasmiga tegishli havola bo'lsa
+        return download_instagram_images(url, downloads_folder)
+    else:
+        # Qolgan barcha havolalar uchun video yuklash
+        return download_video_with_audio(url, downloads_folder)

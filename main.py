@@ -387,7 +387,7 @@ def handle_message(message):
         except ValueError as ve:
             bot.send_message(message.chat.id, f"Xatolik: {ve}")
         except Exception as e:
-            bot.send_message(message.chat.id, f"❗️Bu media yopiq akkauntga tegishli bo'lishi mumkin.\n_______________________\n😕Hozirga bu media faylini yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!")
+            bot.send_message(message.chat.id, f"❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
         finally:
             # Statusni yangilash va to'xtatish
             stop_event.set()

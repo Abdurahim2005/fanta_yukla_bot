@@ -20,7 +20,7 @@ def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', out
         except Exception as e:
             if "private" in str(e).lower():
                 raise ValueError(
-                    "❗️Bu video yopiq akkauntga tegishli bo'lishi mumkin.\n😕Hozirga bu videoni yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!"
+                    "😕Hozirga bu videoni yuklab olish imkoni yo'q.\n👨‍💻Adminlar bu muammo ustida ishlashmoqda!\nBot serverdan uzilib qolishi kuzatilyapti\nAdmin botni bu xabarni ko'rishi bilan ishga tushiradi\nAgar server bilan bog'liq muammo bo'lmasa,demak hozirda bu mediyani yuklab olish imkonsiz!☝️Botga yana bir bor havolani yuborib ko'ring,bu xolat takrorlansa\n🤔Admin bu muammoni hal qilishga harakat qiladi✅"
                 )
             else:
                 raise e

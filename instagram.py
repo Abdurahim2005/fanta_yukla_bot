@@ -12,6 +12,8 @@ def download_video_with_audio(url: str, downloads_folder: str = 'Downloads', out
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
         'outtmpl': output_path,  # Yuklab olingan fayl nomi va yo'li
+        'quiet': True,
+        'no_warnings': True
     }
     with YoutubeDL(ydl_opts) as ydl:
         try:

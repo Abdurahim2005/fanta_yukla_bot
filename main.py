@@ -16,14 +16,10 @@ BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)
 
-# Logger darajasini o'rnatish
-logging.basicConfig(level=logging.WARNING)  # Yoki kerakli log darajasini belgilang
-
-# Shuningdek, logging kutubxonasini konfiguratsiya qilish (ixtiyoriy)
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.WARNING,  # Faqat ogohlantirish va undan yuqori darajadagi loglar
-)
+# Barcha loggerlarni o‘chirish (global sozlama)
+logging.basicConfig(level=logging.CRITICAL)  # Barcha loglar o‘chiriladi
+# yt-dlp loggerni o‘chirish
+logging.getLogger('yt_dlp').setLevel(logging.CRITICAL)
 
 # Telegram API uchun sessiya sozlamalari
 session = requests.Session()

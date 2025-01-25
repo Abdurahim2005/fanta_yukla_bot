@@ -6,6 +6,7 @@ from yt_dlp import YoutubeDL
 import requests
 import threading
 import time
+import logging
 # from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 from instagram import download_media
 
@@ -14,6 +15,8 @@ BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)
+# Log darajasini faqat ogohlantirish yoki undan yuqori qilib o'rnatish
+telebot.logger.setLevel(logging.WARNING)
 
 # Telegram API uchun sessiya sozlamalari
 session = requests.Session()
@@ -147,6 +150,7 @@ def download_and_send_video(message, format_id, url):
             "outtmpl": "downloads/%(title)s.%(ext)s" if format_id == "mp3" else video_filename,
             "quiet": True,
             "noprogress": True,
+            'no_warnings': True,
             "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}] if format_id == "mp3" else [],
             "http_headers": {
                 "User-Agent": "Mozilla/5.0",

@@ -11,7 +11,7 @@ import logging
 from instagram import download_media
 
 # Bot tokenini kiriting 
-BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
+BOT_TOKEN = "7901083872:AAHIZSZZD5EWtRdXX8tQwSNou7hh7LqoskQ"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)

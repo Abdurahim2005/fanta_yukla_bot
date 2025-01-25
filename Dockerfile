@@ -1,5 +1,5 @@
 # Python image asosida tasvir yaratish
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 # FFmpeg o'rnatish
 RUN apt-get update && apt-get install -y ffmpeg

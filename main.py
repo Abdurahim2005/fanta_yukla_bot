@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import threading
@@ -15,10 +14,6 @@ BOT_TOKEN = "7901083872:AAEceZ0Bu-8yKg0RkRObiJMR51kPWKzbqVM"
 
 # Bot obyektini yaratish
 bot = TeleBot(BOT_TOKEN)
-
-# Logging sozlamalari
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Telegram API uchun sessiya sozlamalari
 session = requests.Session()
@@ -96,11 +91,9 @@ def clear_download_folder():
     if os.path.exists(folder):
         for file in os.listdir(folder):
             file_path = os.path.join(folder, file)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f"Faylni o'chirishda xatolik: {file_path}, {e}")
+            if os.path.isfile(file_path):
+                 os.remove(file_path)
+           
 
 import unicodedata
 def clean_surrogates(text):
@@ -342,8 +335,6 @@ def handle_message(message):
         except Exception as e:
             # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
             bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-
-            logger.error(f"Xatolik video yuklashda: {e}", exc_info=True)
             bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
     elif True:
         # Instagram havolasi haqida foydalanuvchiga xabar berish
@@ -392,23 +383,16 @@ def handle_message(message):
             # Statusni yangilash va to'xtatish
             stop_event.set()
             status_thread.join()
-
             # "Yuklab olish boshlandi..." xabarini o'chirish
-            try:
-                bot.delete_message(message.chat.id, status_message.message_id)
-            except Exception as e:
-                print(f"Xatolik status xabarni o'chirishda: {e}\nXatolik davom etsa @Abdurhim0525 bilan bog'laning")
+            bot.delete_message(message.chat.id, status_message.message_id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("format:"))
 def handle_format_callback(call):
     try:
         format_id = call.data.split(":")[1]
-    
         # Reply URL ni sessiyadan olish
         url = user_sessions.get(call.message.chat.id)
-
         if not url:
-            logger.warning("URL sessiyadan topilmadi.")
             bot.answer_callback_query(call.id, "\u274C URL topilmadi.")
             return
 
@@ -416,7 +400,6 @@ def handle_format_callback(call):
         threading.Thread(target=download_and_send_video, args=(call.message, format_id, url)).start()
         bot.answer_callback_query(call.id, "✅ Yuklash boshlandi...")
     except Exception as e:
-        logger.error(f"Callback xatosi: {e}")
         bot.answer_callback_query(call.id, "\u274C Yuklashda xatolik yuz berdi.")
         
 # Botni ishga tushirish

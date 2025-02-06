@@ -21,6 +21,7 @@ async def download_video(url, message):
     ydl_opts = {
         'outtmpl': f'{temp_dir}/%(title)s.%(ext)s',
         'format': 'best',
+        'cookiefile': 'cookies.txt'  # <-- COOKIES YO‘LNI KO‘SHING
     }
     
     msg = await message.reply("📥 Yuklab olinmoqda...")

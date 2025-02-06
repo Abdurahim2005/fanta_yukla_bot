@@ -259,7 +259,7 @@ def handle_message(message):
     username = message.from_user.username 
     bot.send_message(SuperUser,f"ID: {id}\nUsername: @{username}\n-----------------\n {message.text[:4000]}\n---------------\nxabarini botga yubordi.")
     url = message.text.strip()
-    if is_youtube_url(url):
+    if False:#is_youtube_url(url):
         # Ma'lumotlar yuklanmoqda xabarini yuborish
         loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
 

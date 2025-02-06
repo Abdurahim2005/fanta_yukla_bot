@@ -1,446 +1,93 @@
 import os
-import re
-import threading
-from telebot import TeleBot, apihelper, types
-from yt_dlp import YoutubeDL
-import requests
-import threading
 import time
-import logging
-# from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
-from instagram import download_media
-SuperUser = 1663567950
-# Bot tokenini kiriting 
+import asyncio
+from pyrogram import Client, filters
+from yt_dlp import YoutubeDL
+import re
+
+# Telegram bot sozlamalari
+API_ID = "29517932"
+API_HASH = "572b177f48692c0cbd88664120fb87f4"
 BOT_TOKEN = "7901083872:AAHIZSZZD5EWtRdXX8tQwSNou7hh7LqoskQ"
+ADMIN_ID = 1663567950
 
-# Bot obyektini yaratish
-bot = TeleBot(BOT_TOKEN)
+app = Client("video_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Barcha loggerlarni o‘chirish (global sozlama)
-logging.basicConfig(level=logging.CRITICAL)  # Barcha loglar o‘chiriladi
-# yt-dlp loggerni o‘chirish
-logging.getLogger('yt_dlp').setLevel(logging.CRITICAL)
-
-# Telegram API uchun sessiya sozlamalari
-session = requests.Session()
-adapter = requests.adapters.HTTPAdapter(
-    max_retries=10,  # Qayta urinishlar sonini oshiring
-    pool_connections=100,
-    pool_maxsize=100,
-)
-session.mount("https://", adapter)
-session.mount("http://", adapter)
-apihelper.SESSION = session
-
-# YouTube URL tekshiruvi
-def is_youtube_url(url: str) -> bool:
-    return re.match(r'(https?://)?(www\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/).+', url) is not None
-
-# Instagram URL ni aniqlash uchun regex
-def is_instagram_url(url):
-    return re.match(r'(https?://)?(www\.)?instagram\.com/.+', url) is not None
-
-# Fayl nomini tozalash funksiyasi
-def sanitize_filename(filename):
-    return re.sub(r'[^\w\s-]', '', filename).strip().replace(' ', '_')
-
-# /start buyrug'iga javob
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    for i in  range(2):
-        if i == 0:
-            bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌐Barcha ijtimoiy tarmoqdan videolarni yuklab bera olaman.\n✍️Shunchaki havolani menga yuboring...")
-        else:
-            bot.send_message(SuperUser,f"ID: {message.chat.id}\n@{message.from_user.username}\n----------------\nBotga /start xabarini yubordi")
-        
-# Formatlar haqida ma'lumotni foydalanuvchiga yuborish
-def get_formats_description(formats):
-    descriptions = []
-    for f in formats:
-        if f.get('ext') == 'mp4' and f.get('filesize', 0) <= 50 * 1024 * 1024:
-            resolution = f.get('format_note', 'Unknown')
-            size_mb = round(f.get('filesize', 0) / (1024 * 1024), 2)
-            if resolution.lower() not in ["default", "unknown", "none"]:
-                descriptions.append(f"🚀 {resolution}")
-    # Faqat MP3 tugmasi mavjud bo‘lganda qo‘shish
-    if "mp3" not in [f.get('ext') for f in formats]:
-        descriptions.append("🎵 MP3")  # MP3 formatini qo‘shish
-    return "\n".join(descriptions)
-
-def create_format_buttons(formats, include_mp3=False):
-    unique_formats = set()
-    buttons = []
-
-    for f in formats:
-        if f.get('ext') == 'mp4' and f.get('filesize', 0) <= 50 * 1024 * 1024:
-            resolution = f.get('format_note', 'Unknown')
-            if resolution.lower() not in ["default", "unknown", "none"]:
-                if resolution not in unique_formats:
-                    unique_formats.add(resolution)
-                    buttons.append(
-                        types.InlineKeyboardButton(
-                            text=f"🚀 {resolution}",
-                            callback_data=f"format:{f['format_id']}"
-                        )
-                    )
-    # MP3 formatini qo‘shish
-    if include_mp3:
-        buttons.append(
-            types.InlineKeyboardButton(
-                text="🎵 MP3", callback_data="format:mp3"
-            )
-        )
-    keyboard = types.InlineKeyboardMarkup(row_width=3)
-    for i in range(0, len(buttons), 3):
-        keyboard.add(*buttons[i:i+3])
-    return keyboard
-
-def clear_download_folder():
-    """Vaqtinchalik fayllarni tozalash."""
-    folder = "downloads"
-    if os.path.exists(folder):
-        for file in os.listdir(folder):
-            file_path = os.path.join(folder, file)
-            if os.path.isfile(file_path):
-                 os.remove(file_path)
-           
-
-import unicodedata
-def clean_surrogates(text):
-    """
-    Unicode surrogat belgilarni olib tashlaydi.
-    """
+# Yuklab olish uchun funksiyalar
+async def download_video(url, message):
+    temp_dir = "downloads"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    ydl_opts = {
+        'outtmpl': f'{temp_dir}/%(title)s.%(ext)s',
+        'format': 'best',
+    }
+    
+    msg = await message.reply("📥 Yuklab olinmoqda...")
+    status_msg_id = msg.id
+    
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            percent = d.get('percentage', 0)
+            asyncio.create_task(message.edit(f"⏳ Yuklanmoqda: {percent:.2f}%"))
+    
+    ydl_opts['progress_hooks'] = [progress_hook]
+    
     try:
-        # Unicode normalizatsiyasi
-        text = unicodedata.normalize("NFKD", text)
-        # Surrogat belgilarni olib tashlash
-        text = re.sub(r"[\ud800-\udfff]", "", text)
-        return text
-    except Exception as e:
-        raise ValueError(f"Surrogatlarni tozalashda xatolik: {e}")
-
-def send_chat_action_periodically(chat_id, action, stop_event):
-    """
-    Chat actionni qayta-qayta yuborish uchun yordamchi funksiya.
-    """
-    while not stop_event.is_set():
-        bot.send_chat_action(chat_id=chat_id, action=action)
-        time.sleep(5)  # Har 5 soniyada yangilab turadi
-        
-def download_and_send_video(message, format_id, url):
-    try:
-        # URL va foydalanuvchi ma'lumotlarini tozalash
-        url = clean_surrogates(url)
-
-        # Eski yuklashlarni tozalash
-        clear_download_folder()
-
-        # Foydalanuvchiga vaqtinchalik xabar yuborish
-        temp_message = bot.reply_to(message, "⏳ Fayl yuklanmoqda, kuting...")
-
-        # Telegram faoliyat belgisi
-        action = "upload_audio" if format_id == "mp3" else "upload_video"
-
-        # Statusni saqlash uchun thread va stop event
-        stop_event = threading.Event()
-        status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
-        status_thread.start()
-
-        # Fayl nomlari
-        video_filename = "downloads/video_file.mp4"
-        audio_filename = "downloads/audio_file.mp3"
-        merged_filename = "downloads/merged_video.mp4"
-
-        # YouTubeDL parametrlari
-        ydl_opts = {
-            "format": "bestaudio/best" if format_id == "mp3" else format_id,
-            "outtmpl": "downloads/%(title)s.%(ext)s" if format_id == "mp3" else video_filename,
-            "quiet": True,
-            "noprogress": True,
-            'no_warnings': True,
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}] if format_id == "mp3" else [],
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0",
-                "Accept-Language": "en-US,en;q=0.9",
-            },
-        }
-
-        # Faylni yuklab olish
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-
-        # Fayl nomini aniqlash
-        if format_id == "mp3":
-            downloaded_filename = ydl.prepare_filename(info).replace(".webm", ".mp3").replace(".m4a", ".mp3")
-            if not os.path.exists(downloaded_filename):
-                bot.reply_to(message, "❌ Faylni yuklab olishda xatolik yuz berdi.")
-                return
-
-            os.rename(downloaded_filename, audio_filename)
-            file_path = audio_filename
-        else:
-            file_path = video_filename
-
-        # Faylni yuborish
-        if format_id == "mp3":
-            with open(file_path, "rb") as file:
-                bot.send_audio(
-                    chat_id=message.chat.id,
-                    audio=file,
-                    caption=f"🎵 {info.get('title', 'Audio')}\n\n✅ Shunchaki foydalaning!\n@FantaYukla_bot"
-                )
-        else:
-            # Video uchun audio yuklash
-            audio_opts = {
-                "format": "bestaudio",
-                "outtmpl": audio_filename,
-                "quiet": True,
-                "noprogress": True,
-            }
-
-            with YoutubeDL(audio_opts) as ydl:
-                ydl.extract_info(url, download=True)
-
-            if not os.path.exists(audio_filename):
-                bot.reply_to(message, "❌ Audio faylni yuklashda xatolik yuz berdi.")
-                return
-
-            # Video va audio birlashtirish
-            merge_command = f"ffmpeg -i \"{video_filename}\" -i \"{audio_filename}\" -c:v copy -c:a aac \"{merged_filename}\" -y"
-            merge_result = os.system(merge_command)
-
-            if merge_result != 0 or not os.path.exists(merged_filename):
-                bot.reply_to(message, "❌ Video va audio birlashtirishda xatolik yuz berdi.")
-                return
-
-            # Birlashtirilgan video yuborish
-            with open(merged_filename, "rb") as file:
-                bot.send_video(
-                    chat_id=message.chat.id,
-                    video=file,
-                    caption=f"🎥 {info.get('title', 'Video')}\n\n✅ Shunchaki foydalaning!\n@FantaYukla_bot",
-                    supports_streaming=True,
-                    timeout=600
-                )
-
-        # Tozalash
-        clear_download_folder()
-
-        # Yuklanish tugadi xabarini o'chirish
-        bot.delete_message(chat_id=message.chat.id, message_id=temp_message.message_id)
-
+            video_path = ydl.prepare_filename(info)
+        
+        caption = "✅ Shunchaki foydalaning\n\n@FantaYukla_bot"
+        user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
+        
+        # Foydalanuvchiga video yuborish
+        await message.reply_video(video=video_path, caption=caption)
+        
+        # Admin uchun video yuborish
+        admin_msg = await app.send_message(ADMIN_ID, f"📩 Yangi video yuklandi!\n{user_info}\n🔗 {url}")
+        await app.send_video(ADMIN_ID, video=video_path, caption=user_info, reply_to_message_id=admin_msg.id)
+        
+        os.remove(video_path)
     except Exception as e:
-        bot.reply_to(message, f"❌ Yuklashda xatolik yuz berdi: {e}")
-        clear_download_folder()
-
-    finally:
-        # Statusni to'xtatish
-        stop_event.set()
-        status_thread.join()
-
-def escape_markdown(text, version=2):
-    """
-    Telegram Markdown uchun maxsus belgilarni qochirish.
-    """
-    if version == 1:
-        escape_chars = r'_*\[\]()~`>#+-=|{}.!'
-    elif version == 2:
-        escape_chars = r'_*\[\]()~`>#+-=|{}.!'
-    else:
-        raise ValueError("Unsupported Markdown version. Use 1 or 2.")
+        error_message = f"❌ Xatolik yuz berdi: {str(e)}"
+        await message.reply(error_message)
+        await app.send_message(ADMIN_ID, f"⚠️ Xatolik yuz berdi!\n{user_info}\n🔗 {url}\n❌ {str(e)}")
     
-    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+    await message.delete()  # Eski xabarlarni tozalash
+    await app.delete_messages(message.chat.id, status_msg_id)
 
-# Foydalanuvchi xabarlarini sessiyada saqlash uchun
-user_sessions = {}
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    id = message.chat.id
-    username = message.from_user.username 
-    bot.send_message(SuperUser,f"ID: {id}\nUsername: @{username}\n-----------------\n {message.text[:4000]}\n---------------\nxabarini botga yubordi.")
+@app.on_message(filters.private & filters.command("start"))
+async def start_command(client, message):
+    await message.reply("👋 Salom! Menga video havolasini yuboring, men uni yuklab beraman.")
+
+@app.on_message(filters.private & filters.text & ~filters.user(ADMIN_ID))
+async def handle_message(client, message):
     url = message.text.strip()
-    if False:#is_youtube_url(url):
-        # Ma'lumotlar yuklanmoqda xabarini yuborish
-        loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
-
-        try:
-            ydl_opts = {"quiet": True, "force_generic_extractor": False}
-
-            with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                formats = info.get("formats", [])
-                thumbnail = info.get("thumbnail", "")
-                title = info.get("title", "No Title")
-                duration = info.get("duration", 0)
-
-                # Formatlarni ajratish va tekshirish
-                unique_formats = {}
-                format_details = []
-
-                for f in formats:
-                    resolution = f.get("format_note", "unknown").lower()
-                    filesize = f.get("filesize", 0) or 0
-                    ext = f.get("ext", "unknown")
-
-                    if (
-                        ext == "mp4"
-                        and filesize > 0
-                        and filesize <= 50 * 1024 * 1024
-                        and resolution not in ["default", "unknown", None]
-                    ):
-                        if resolution not in unique_formats or filesize < unique_formats[resolution].get("filesize", float("inf")):
-                            unique_formats[resolution] = f
-
-                # MP3 formatni qo'shish
-                mp3_format = None
-                for f in formats:
-                    if f.get("ext") == "webm" and f.get("acodec") != "none":
-                        mp3_format = f
-                        break
-
-                # Format tafsilotlarini yaratish
-                for resolution, f in unique_formats.items():
-                    size_mb = f.get("filesize", 0) / (1024 * 1024)
-                    format_details.append(escape_markdown(f"🚀 {resolution.upper()}: {size_mb:.2f}MB", version=2))
-
-                if mp3_format:
-                    mp3_size_mb = mp3_format.get("filesize", 0) / (1024 * 1024)
-                    format_details.append(escape_markdown(f"🎵 MP3: {mp3_size_mb:.2f}MB", version=2))
-
-                # Agar hech bir format mos kelmasa
-                if not unique_formats and not mp3_format:
-                    bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-                    bot.send_message(chat_id=message.chat.id, text="⚠️ Hech bir format 50 MB dan kichik emas. Iltimos, boshqa video tanlang.\n🛡Telegram cheklovlari tufayli bu videoni yuklab olish imkonsiz👨‍💻Adminlar bu muammo ustida ish olib borishmoqda.")
-                    return
-
-                # Tugmalarni yaratish
-                keyboard = create_format_buttons(list(unique_formats.values()), include_mp3=bool(mp3_format))
-
-                # Sessiyani saqlash
-                user_sessions[message.chat.id] = url
-
-                # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
-                bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-
-                # Foydalanuvchiga xabar yuborish
-                for i in range(2):
-                    if i == 0:
-                        bot.send_photo(
-                            chat_id=message.chat.id,
-                            photo=thumbnail,
-                            caption=(
-                                f"🎥 *{escape_markdown(title, version=2)}*\n\n"
-                                "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
-                            ),
-                            parse_mode="MarkdownV2",
-                            reply_markup=keyboard,
-                        )
-                    else:
-                        bot.send_photo(
-                        chat_id=SuperUser,
-                        photo=thumbnail,
-                        caption=(
-                            f"🎥 *{escape_markdown(title, version=2)}*\nID: {id}\nUsername: @{username}\n"
-                            "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
-                        ),
-                        parse_mode="MarkdownV2",
-                        reply_markup=keyboard,
-                    )
-
-        except Exception as e:
-            # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
-            bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-            for i in range(2):
-                if i == 0:
-                    bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
-                else:
-                    bot.send_message(chat_id=SuperUser, text=f"ID: {id}\nUsername: @{username}\n-----------------\nQuyidagi xabar yuborildi\n❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+    user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
     
-    elif True:
-        # Instagram havolasi haqida foydalanuvchiga xabar berish
-        status_message = bot.send_message(
-            message.chat.id,
-            "⏳Yuklanmoqda, kuting..."
-        )
-        
-        # Statusni saqlash uchun stop_event va thread boshlash
-        stop_event = threading.Event()
-        action = "upload_video"
-        status_thread = threading.Thread(target=send_chat_action_periodically, args=(message.chat.id, action, stop_event))
-        status_thread.start()
+    # Adminga foydalanuvchi xabarini yuborish
+    admin_msg = await app.send_message(ADMIN_ID, f"📩 {user_info} botga quyidagi xabarni yubordi:\n{url}")
+    
+    if url.startswith("http"):
+        await message.delete()
+        await download_video(url, message)
+    else:
+        error_message = "❌ Iltimos, to'g'ri havola yuboring!"
+        await message.reply(error_message)
+        await app.send_message(ADMIN_ID, f"⚠️ Xatolik! {user_info} noto‘g‘ri havola yubordi: {url}")
 
-        try:
-            # Instagram media yuklash (video yoki rasmlar)
-            media = download_media(url)
+@app.on_message(filters.private & filters.reply & filters.user(ADMIN_ID))
+async def reply_to_user(client, message):
+    if message.reply_to_message:
+        user_id_match = re.search(r'ID: (\d+)', message.reply_to_message.text)
+        if user_id_match:
+            user_id = int(user_id_match.group(1))
+            await app.send_message(user_id, f"📩 Admin javobi:\n{message.text}")
+            await message.reply("✅ Xabar foydalanuvchiga yuborildi.")
+        else:
+            await message.reply("⚠️ Ushbu xabarda foydalanuvchi ID topilmadi.")
+    else:
+        await message.reply("⚠️ Ushbu xabar orqali foydalanuvchini aniqlab bo‘lmadi.")
 
-            if isinstance(media, list):  # Agar rasmlar ro'yxati bo'lsa
-                for image_path in media:
-                    with open(image_path, 'rb') as photo:
-                        for i in range(2):
-                            if i == 0:
-                                bot.send_photo(
-                                    chat_id=message.chat.id,
-                                    photo=photo,
-                                    caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
-                                )
-                            else:
-                                bot.send_photo(
-                                    chat_id=SuperUser,
-                                    photo=photo,
-                                    caption=" ID: {id}\nUsername: @{username}\n-----------------\nBu rasm yuklab oldi"
-                                )
-                                
-                    # Yuklangan rasmni o'chirish
-                    os.remove(image_path)
-
-            else:  # Agar video bo'lsa
-                # Yuklangan videoni foydalanuvchiga yuborish
-                with open(media, 'rb') as video:
-                    for i in range(2):
-                        if i ==0:
-                            bot.send_video(
-                                chat_id=id,
-                                video=video,
-                                caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
-                            )
-                        else:
-                            bot.send_video(
-                                chat_id=SuperUser,
-                                video=video,
-                                caption=f" ID: {id}\nUsername: @{username}\n-----------------\nBu videoni yuklab oldi."
-                            )
-                            
-                # Yuklangan videoni o'chirish
-                os.remove(media)
-
-        except ValueError as ve:
-            bot.send_message(message.chat.id, f"Xatolik: {ve}")
-        except Exception as e:
-            bot.send_message(id, f"❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
-            bot.send_message(SuperUser,f"ID: {id}\nUsername: @{username}\n-----------------\nBu foydalanuvchiga xatolik xabari yuborildi!\n❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
-        finally:
-            # Statusni yangilash va to'xtatish
-            stop_event.set()
-            status_thread.join()
-            # "Yuklab olish boshlandi..." xabarini o'chirish
-            bot.delete_message(message.chat.id, status_message.message_id)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("format:"))
-def handle_format_callback(call):
-    try:
-        format_id = call.data.split(":")[1]
-        # Reply URL ni sessiyadan olish
-        url = user_sessions.get(call.message.chat.id)
-        if not url:
-            bot.answer_callback_query(call.id, "\u274C URL topilmadi.")
-            return
-
-        # Yuklashni ishga tushirish
-        threading.Thread(target=download_and_send_video, args=(call.message, format_id, url)).start()
-        bot.answer_callback_query(call.id, "✅ Yuklash boshlandi...")
-    except Exception as e:
-        bot.answer_callback_query(call.id, "\u274C Yuklashda xatolik yuz berdi.")
-        
-# Botni ishga tushirish
-if __name__ == "__main__":
-    bot.polling(none_stop=True, timeout=300, long_polling_timeout=100)
+app.run()

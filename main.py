@@ -9,7 +9,7 @@ import time
 import logging
 # from instagram import download_video_with_audio  # Instagram videolarini yuklab olish funksiyasini import qilamiz
 from instagram import download_media
-
+SuperUser = 1663567950
 # Bot tokenini kiriting 
 BOT_TOKEN = "7901083872:AAHIZSZZD5EWtRdXX8tQwSNou7hh7LqoskQ"
 
@@ -47,8 +47,12 @@ def sanitize_filename(filename):
 # /start buyrug'iga javob
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌐Barcha ijtimoiy tarmoqdan videolarni yuklab bera olaman.\n✍️Shunchaki havolani menga yuboring...")
-
+    for i in  range(2):
+        if i == 0:
+            bot.reply_to(message, "🙂Assalomu alaykum! Botimizga xush kelibsiz!\n🌐Barcha ijtimoiy tarmoqdan videolarni yuklab bera olaman.\n✍️Shunchaki havolani menga yuboring...")
+        else:
+            bot.send_message(SuperUser,f"ID: {message.chat.id}\n@{message.from_user.username}\n----------------\nBotga /start xabarini yubordi")
+        
 # Formatlar haqida ma'lumotni foydalanuvchiga yuborish
 def get_formats_description(formats):
     descriptions = []
@@ -251,8 +255,10 @@ def escape_markdown(text, version=2):
 user_sessions = {}
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
+    id = message.chat.id
+    username = message.from_user.username 
+    bot.send_message(SuperUser,f"ID: {id}\nUsername: @{username}\n-----------------\n {message.text[:4000]}\n---------------\nxabarini botga yubordi.")
     url = message.text.strip()
-
     if is_youtube_url(url):
         # Ma'lumotlar yuklanmoqda xabarini yuborish
         loading_message = bot.send_message(chat_id=message.chat.id, text="⏳ Ma'lumotlar yuklanmoqda...")
@@ -266,16 +272,6 @@ def handle_message(message):
                 thumbnail = info.get("thumbnail", "")
                 title = info.get("title", "No Title")
                 duration = info.get("duration", 0)
-
-                # Video davomiyligini formatlash
-                hours = duration // 3600
-                minutes = (duration % 3600) // 60
-                seconds = duration % 60
-                duration_str = (
-                    f"{hours:02}:{minutes:02}:{seconds:02}"
-                    if hours > 0
-                    else f"{minutes:02}:{seconds:02}"
-                )
 
                 # Formatlarni ajratish va tekshirish
                 unique_formats = {}
@@ -327,22 +323,39 @@ def handle_message(message):
                 bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
 
                 # Foydalanuvchiga xabar yuborish
-                bot.send_photo(
-                    chat_id=message.chat.id,
-                    photo=thumbnail,
-                    caption=(
-                        f"🎥 *{escape_markdown(title, version=2)}*\n"
-                        f"⏱️ *Davomiyligi*: {duration_str}\n\n"
-                        "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
-                    ),
-                    parse_mode="MarkdownV2",
-                    reply_markup=keyboard,
-                )
+                for i in range(2):
+                    if i == 0:
+                        bot.send_photo(
+                            chat_id=message.chat.id,
+                            photo=thumbnail,
+                            caption=(
+                                f"🎥 *{escape_markdown(title, version=2)}*\n\n"
+                                "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
+                            ),
+                            parse_mode="MarkdownV2",
+                            reply_markup=keyboard,
+                        )
+                    else:
+                        bot.send_photo(
+                        chat_id=SuperUser,
+                        photo=thumbnail,
+                        caption=(
+                            f"🎥 *{escape_markdown(title, version=2)}*\nID: {id}\nUsername: @{username}\n"
+                            "📥 *Mavjud formatlar:*\n\n" + "\n".join(format_details)
+                        ),
+                        parse_mode="MarkdownV2",
+                        reply_markup=keyboard,
+                    )
 
         except Exception as e:
             # "Ma'lumotlar yuklanmoqda" xabarini o'chirish
             bot.delete_message(chat_id=loading_message.chat.id, message_id=loading_message.message_id)
-            bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+            for i in range(2):
+                if i == 0:
+                    bot.send_message(chat_id=message.chat.id, text="❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+                else:
+                    bot.send_message(chat_id=SuperUser, text=f"ID: {id}\nUsername: @{username}\n-----------------\nQuyidagi xabar yuborildi\n❌ Yuklashda xatolik yuz berdi. Iltimos, boshqa havolani sinab ko'ring.")
+    
     elif True:
         # Instagram havolasi haqida foydalanuvchiga xabar berish
         status_message = bot.send_message(
@@ -363,29 +376,48 @@ def handle_message(message):
             if isinstance(media, list):  # Agar rasmlar ro'yxati bo'lsa
                 for image_path in media:
                     with open(image_path, 'rb') as photo:
-                        bot.send_photo(
-                            chat_id=message.chat.id,
-                            photo=photo,
-                            caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
-                        )
+                        for i in range(2):
+                            if i == 0:
+                                bot.send_photo(
+                                    chat_id=message.chat.id,
+                                    photo=photo,
+                                    caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
+                                )
+                            else:
+                                bot.send_photo(
+                                    chat_id=SuperUser,
+                                    photo=photo,
+                                    caption=" ID: {id}\nUsername: @{username}\n-----------------\nBu rasm yuklab oldi"
+                                )
+                                
                     # Yuklangan rasmni o'chirish
                     os.remove(image_path)
 
             else:  # Agar video bo'lsa
                 # Yuklangan videoni foydalanuvchiga yuborish
                 with open(media, 'rb') as video:
-                    bot.send_video(
-                        chat_id=message.chat.id,
-                        video=video,
-                        caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
-                    )
+                    for i in range(2):
+                        if i ==0:
+                            bot.send_video(
+                                chat_id=id,
+                                video=video,
+                                caption=" 😊Shunchaki foydalaning\n@FantaYukla_bot"
+                            )
+                        else:
+                            bot.send_video(
+                                chat_id=SuperUser,
+                                video=video,
+                                caption=f" ID: {id}\nUsername: @{username}\n-----------------\nBu videoni yuklab oldi."
+                            )
+                            
                 # Yuklangan videoni o'chirish
                 os.remove(media)
 
         except ValueError as ve:
             bot.send_message(message.chat.id, f"Xatolik: {ve}")
         except Exception as e:
-            bot.send_message(message.chat.id, f"❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
+            bot.send_message(id, f"❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
+            bot.send_message(SuperUser,f"ID: {id}\nUsername: @{username}\n-----------------\nBu foydalanuvchiga xatolik xabari yuborildi!\n❗️Havolani yaxshilab tekshiring,bu havola profilga tegishli bo'lmasin\n😕Havolani qayta yuboring,yoki boshqa havoladan foydalaning\n👨‍💻Bu xatolik takrorlanaversa,admin tez orada bu xabarni tekshiradi va xatolikni bartaraf etadi.")
         finally:
             # Statusni yangilash va to'xtatish
             stop_event.set()

@@ -1,6 +1,22 @@
 # Netscape HTTP Cookie File
 # http://curl.haxx.se/rfc/cookie_spec.html
 # This is a generated file!  Do not edit.
+# Netscape HTTP Cookie File
+# http://curl.haxx.se/rfc/cookie_spec.html
+# This is a generated file!  Do not edit.
+
+.instagram.com	TRUE	/	TRUE	1771860395	datr	phmNZ2SikO--2b8I-MgeigTp
+.instagram.com	TRUE	/	TRUE	1768836416	ig_did	CC7B4D8A-A8AD-47B9-93CA-A0082919DB58
+.instagram.com	TRUE	/	TRUE	1771860414	mid	Z40ZuAALAAEXmHh9ImivDovXq2fW
+.instagram.com	TRUE	/	TRUE	1768836414	ig_nrcb	1
+.instagram.com	TRUE	/	TRUE	1774199612	csrftoken	o4d5hEs61P8HJIuyIzjIVqfdPRS5dKsw
+.instagram.com	TRUE	/	TRUE	1750526012	ds_user_id	55067168241
+.instagram.com	TRUE	/	TRUE	1772211786	ps_l	1
+.instagram.com	TRUE	/	TRUE	1772211786	ps_n	1
+.instagram.com	TRUE	/	TRUE	1743354804	wd	1396x663
+.instagram.com	TRUE	/	TRUE	1743354804	dpr	1.375
+.instagram.com	TRUE	/	TRUE	1774276859	sessionid	55067168241%3AvcECI5r0vLhqk9%3A29%3AAYcd4f1PrSvce9D7mXHQQ5DNElibH2areVhMVToyTDg
+.instagram.com	TRUE	/	TRUE	0	rur	"CLN\05455067168241\0541774286002:01f743d7d7d96673719bef3713a383c59c81914f795c233054cd944b5f4292d581511791"
 
 .web.archive.org	TRUE	/web/20200218210245/https://docs.mongodb.com/	FALSE	1769586002	_biz_nA	1
 .web.archive.org	TRUE	/web/20200218210245/https://docs.mongodb.com/	FALSE	1769586002	ajs%3Atest	true
